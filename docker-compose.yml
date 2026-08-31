@@ -1,25 +1,34 @@
-version: '3.8'
-
 services:
   jellyfetch:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: jellyfetch
+    # Draws the container name dynamically from your .env
+    container_name: ${APP_NAME:-JellyFetch}
     restart: unless-stopped
     ports:
-      - "${PORT:-5547}:5547"
+      # Maps the host port to the container port dynamically
+      - "${PORT:-5547}:${PORT:-5547}"
     env_file:
-      - web/.env
-    # Add this block to override the internal container paths
-    environment:
-      - PATH_MOVIES=/media/movies
-      - PATH_TV=/media/tv
-      - PATH_MUSIC=/media/music
-      - PATH_SOCIAL=/media/social
+      # Updated to look at the root directory
+      - .env
+    networks:
+      - jellyfetch_net
     volumes:
-      # Host Path (WSL) : Container Path (Isolated)
-      - ${PATH_MOVIES:-/mnt/e/Media/Jellyfin/Movies}:/media/movies
-      - ${PATH_TV:-/mnt/e/Media/Jellyfin/TV Shows}:/media/tv
-      - ${PATH_MUSIC:-/mnt/e/Media/Music}:/media/music
-      - ${PATH_SOCIAL:-/mnt/e/Media/Jellyfin/YouTubeClips}:/media/social
+      # 1:1 Mapping: The container internal paths now perfectly match your .env host paths
+      - ${PATH_MOVIES}:${PATH_MOVIES}
+      - ${PATH_TV}:${PATH_TV}
+      - ${PATH_MUSIC}:${PATH_MUSIC}
+      - ${PATH_SOCIAL}:${PATH_SOCIAL}
+      # Named volume to persist yt-dlp cache signatures across container updates
+      - jellyfetch_cache:/root/.cache/yt-dlp
+
+# Defines an isolated bridge network for the container
+networks:
+  jellyfetch_net:
+    driver: bridge
+
+# Defines the persistent named volume
+volumes:
+  jellyfetch_cache:
+    name: ${APP_NAME:-JellyFetch}_cache

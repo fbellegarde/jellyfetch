@@ -1,13 +1,19 @@
+# Git
 .git
 .gitignore
-__pycache__
+
+# Docker
+Dockerfile
+docker-compose.yml
+
+# Python environment & caches
+__pycache__/
 *.pyc
 *.pyo
 *.pyd
 .Python
 venv/
 env/
-.env
 build/
 develop-eggs/
 dist/
@@ -24,3 +30,28 @@ wheels/
 .installed.cfg
 *.egg
 .pytest_cache/
+
+# Secrets and Local Config
+.env
+web/.env
+
+# IDEs
+.vscode/
+.idea/
+
+# MEDIA FILES (CRITICAL: Prevents Docker context bloating)
+*.mp4
+*.mkv
+*.webm
+*.mov
+*.mp3
+*.flac
+*.wav
+*.m4a
+*.opus
+*.aac
+*.webp
+*.jpg
+*.jpeg
+*.png
+*.info.json
