@@ -1,3 +1,64 @@
-JellyFetch 0.1.0A feature-rich command-line media downloader and web dashboard powered by yt-dlpdocker compose up -d Copy Docker instructionsDescriptionDownload filesRelease historyOfficial repository: https://github.com/fbellegarde/jellyfetchJellyFetch is a feature-rich, full-stack media acquisition platform. Built as a custom wrapper around yt-dlp, it provides a highly robust terminal CLI alongside a premium, single-page web dashboard[cite: 3, 4]. It automatically routes downloaded media (Movies, TV, Music, Social Clips) into your host file system and triggers library syncs across Jellyfin and Navidrome[cite: 2, 4].  INSTALLATIONDocker Deployment (Recommended)Local Development (WSL/Linux)DependenciesUSAGE AND DASHBOARDWeb Interface FeaturesCLI OptionsCONFIGURATIONEnvironment Variables (.env)Obtaining API KeysMAINTENANCE AND REBUILDINGRebuilding the ContainerSystem CacheINSTALLATIONYou can install JellyFetch using Docker or pip. Docker is the strongly recommended deployment method for production environments.  Docker Deployment (Recommended)JellyFetch is designed to run in an isolated container while securely mounting your host operating system's media drives[cite: 4].Clone the repository and navigate to the directory:git clone [https://github.com/fbellegarde/jellyfetch.git](https://github.com/fbellegarde/jellyfetch.git) && cd jellyfetchDuplicate the environment template:cp web/.env.example web/.envBoot the system in detached mode:docker compose up --build -dLocal Development (WSL/Linux)If you prefer to run JellyFetch natively via Python:  Activate your virtual environment: source venv/bin/activateInstall the local module in editable mode: pip install -e .Launch the web server: python web/server.py[cite: 4]DEPENDENCIESPython versions 3.10+ (CPython) are supported. The Docker container automatically provisions the following:  ffmpeg and ffprobe: Required for merging separate video and audio files, as well as for various post-processing tasks.  yt-dlp-ejs: Required for full YouTube support.  Deno: The required JavaScript runtime engine to evaluate and crack yt-dlp JS challenges.  USAGE AND DASHBOARDWeb Interface FeaturesThe JellyFetch web dashboard is accessible by default at [http://127.0.0.1:5547](http://127.0.0.1:5547)[cite: 2, 3]. It operates as a fully dynamic Single Page Application (SPA)[cite: 3].Universal Drag-and-Drop: You can drag any URL from your browser directly onto the UI window to instantly trigger the Metadata Inspector[cite: 3].Metadata Inspector: Previews the thumbnail, uploader, exact duration, and description parsed from the yt-dlp extract_info dictionary before downloading[cite: 4].Hardware Audio Visualizer: The bottom media player features a real-time, hardware-accelerated HTML5 Canvas waveform visualizer that reacts to the frequencies of streaming media[cite: 3].Play Queue: Right-click any media card to "Add to Queue"; the background audio/video engine will automatically transition to the next track upon completion[cite: 3].Multi-Select: When using the Table View, use Shift + Click to select multiple items for bulk queueing or bulk deletion from the file system[cite: 3].Picture-in-Picture (PiP): Float the video player on top of your OS desktop using the native browser PiP API[cite: 3].CLI OptionsJellyFetch exposes the download command globally to your terminal.Bashdownload [format] <url>
-Auto-Routing: By default, JellyFetch analyzes the URL (e.g., music.youtube.com, tiktok.com) and the yt-dlp metadata to automatically route the file to the correct host directory (Music, Social Clips, TV Shows, Movies)[cite: 4].Format Forcing: Pass explicit formats to override yt-dlp defaults[cite: 4, 5].download mp3 <url>: Forces audio extraction at 192kbps[cite: 4].download mkv <url>: Forces the merging of bestvideo+bestaudio into an MKV container[cite: 4].download all <url>: Archives all available formats[cite: 4].CONFIGURATIONYou can configure JellyFetch by modifying the .env file located in the /web directory[cite: 2, 5].Environment VariablesThe .env file dictates the routing logic, UI branding, and server ports[cite: 2].SERVER NETWORKING[cite: 2]HOST: The binding address (Default: 0.0.0.0)[cite: 2].PORT: The port the Flask API and Web UI run on (Default: 5547)[cite: 2].FLASK_DEBUG: Set to True for hot-reloading during development (Default: False)[cite: 2].UI BRANDING & SETTINGS[cite: 2]APP_NAME: Alters the text in the top-left sidebar (Default: JellyFetch)[cite: 2].THEME_PRIMARY: Hex code for the primary accent color (Default: #a855f7)[cite: 2].MAX_GRID_ITEMS: Limits the maximum number of files parsed per directory to prevent DOM lag (Default: 500)[cite: 2].LIBRARY MOUNT PATHS (WSL / HOST)[cite: 2]These represent the internal paths where your host drives are mounted[cite: 2].PATH_MOVIES: Default is /mnt/e/Media/Jellyfin/Movies[cite: 2].PATH_TV: Default is /mnt/e/Media/Jellyfin/TV Shows[cite: 2].PATH_MUSIC: Default is /mnt/e/Media/Music[cite: 2].PATH_SOCIAL: Default is /mnt/e/Media/Jellyfin/YouTubeClips[cite: 2].SERVER INTEGRATIONS[cite: 2]JELLYFIN_URL: Your local Jellyfin instance address (Default: [http://127.0.0.1:8096](http://127.0.0.1:8096))[cite: 2].JELLYFIN_API_KEY: The authorization token to trigger remote library scans[cite: 2, 4].NAVIDROME_URL: Your local Navidrome instance address (Default: [http://127.0.0.1:4533](http://127.0.0.1:4533))[cite: 2].Obtaining API KeysTo utilize the "Sync Jellyfin" button in the web UI[cite: 3], you must provide a valid API key.Open your Jellyfin Web Dashboard.Navigate to Dashboard -> Advanced -> API Keys.Click the + icon to generate a new key. Name it "JellyFetch".Copy the generated string and paste it as the value for JELLYFIN_API_KEY= in your .env file[cite: 2].MAINTENANCE AND REBUILDINGRebuilding the ContainerIf you modify server.py, index.html, or alter your .env configuration, you must rebuild the Docker container to apply the changes.Run the following command from the root JellyFetch directory:Bashdocker compose up --build -d
-This forces Docker to re-evaluate the Dockerfile, reinstall dependencies, and remount the volumes. The -d flag runs the container in detached mode.System CacheJellyFetch automatically extracts internal metadata and persists it alongside media as .info.json files[cite: 4]. To maintain optimal extraction speeds and bypass stale signatures, yt-dlp utilizes a local cache.  If downloads begin failing or throwing Signatures errors:Open the JellyFetch Web UI[cite: 3].Navigate to the System Settings tab[cite: 3].Locate the Services & Maintenance card[cite: 3].Click Flush Cache[cite: 3]. This triggers YoutubeDL().cache.remove() on the backend, instantly clearing the internal yt-dlp cache safely without needing to restart the container[cite: 4].
+### JellyFetch 0.1.0
+A feature-rich command-line media downloader and web dashboard
+`docker compose up -d` Copy Docker instructions
+
+* [Description](#description)
+* [Dependencies](#dependencies)
+* [Installation](#installation)
+* [Usage and Dashboard](#usage-and-dashboard)
+* [Configuration](#configuration)
+* [Extracted Metadata](#extracted-metadata)
+* [Examples](#examples)
+* [Maintenance and Cache](#maintenance-and-cache)
+
+Official repository: https://github.com/fbellegarde/jellyfetch
+
+JellyFetch is a feature-rich, full-stack media acquisition platform. Built as a custom wrapper around yt-dlp—a feature-rich command-line audio/video downloader with support for thousands of sites—it provides a highly robust terminal CLI alongside a premium, single-page web dashboard. It automatically routes downloaded media (Movies, TV, Music, Social Clips) into your host file system and triggers library syncs across Jellyfin and Navidrome.
+
+**Important**: Any user experiencing an issue with downloads or signature extraction should flush the system cache via the Web UI before submitting a bug report.
+
+---
+
+### DEPENDENCIES
+Python versions 3.10+ (CPython) are supported. While some dependencies are optional for basic yt-dlp usage, the following are heavily utilized by the JellyFetch Docker container:
+
+#### Strongly recommended
+* **ffmpeg and ffprobe** - Required for merging separate video and audio files, as well as for various post-processing tasks.
+* **yt-dlp-ejs** - Required for full YouTube support. Licensed under Unlicense, bundles MIT and ISC components.
+* **deno** - A JavaScript runtime/engine recommended to run yt-dlp-ejs.
+
+---
+
+### INSTALLATION
+
+**Docker Deployment (Recommended)**
+JellyFetch is designed to run in an isolated container while securely mounting your host media drives.
+```bash
+git clone [https://github.com/fbellegarde/jellyfetch.git](https://github.com/fbellegarde/jellyfetch.git) && cd jellyfetch
+cp web/.env.example web/.env
+docker compose up --build -d
+Local Development (WSL/Linux)Bashsource venv/bin/activate
+pip install -e .
+python web/server.py
+USAGE AND DASHBOARDWeb Interface OptionsThe JellyFetch web dashboard is accessible by default at http://127.0.0.1:5547 and operates as a fully dynamic Single Page Application (SPA).Universal Drag-and-Drop: Drag any URL from your browser directly onto the UI window to instantly trigger the Metadata Inspector.Metadata Inspector: Previews the thumbnail, uploader, exact duration, and description parsed from the internal extraction dictionary before downloading.Hardware Audio Visualizer: The media player features a real-time HTML5 Canvas waveform visualizer that reacts to streaming media frequencies.Play Queue & Multi-Select: Add media to your queue for automatic transitions, or use Shift+Click in Table View for bulk queueing and deletion.Picture-in-Picture (PiP): Float the video player on top of your OS desktop using the native browser PiP API.CLI OptionsJellyFetch exposes the download command globally to your terminal, allowing you to pass explicit formats.Plaintext-h, --help                      Print this help text and exit
+auto                            (Default) Analyzes the URL and metadata to automatically 
+                                route files to the correct host directory.
+mp3                             Convert video files to audio-only files[cite: 5].
+                                Forces 192kbps audio extraction.
+mkv                             Remux the video into another container[cite: 5].
+                                Forces merging the best video and audio into an MKV container.
+all                             Archives all available formats.
+CONFIGURATIONConfigure JellyFetch by modifying the .env file in the /web directory. If you alter your configuration or core files, run docker compose up --build -d to rebuild the container.VariableCategoryDefault ValueDescriptionHOSTServer0.0.0.0The binding address.PORTServer5547The port the Flask API and Web UI run on.FLASK_DEBUGServerFalseSet to True for hot-reloading during development.APP_NAMEBrandingJellyFetchAlters the text in the top-left sidebar.THEME_PRIMARYBranding#a855f7Hex code for the primary accent color.MAX_GRID_ITEMSBranding500Limits the maximum files parsed per directory to prevent DOM lag.PATH_MOVIESMounts/mnt/e/.../MoviesThe internal path where your host movie drive is mounted.PATH_TVMounts/mnt/e/.../TV ShowsThe internal path where your host TV drive is mounted.PATH_MUSICMounts/mnt/e/.../MusicThe internal path where your host music drive is mounted.PATH_SOCIALMounts/mnt/e/.../ClipsThe internal path where your host social clips drive is mounted.JELLYFIN_URLIntegrationshttp://...Your local Jellyfin instance address.JELLYFIN_API_KEYIntegrationsNoneGenerate this in Jellyfin to sync via the Web UI.NAVIDROME_URLIntegrationshttp://...Your local Navidrome instance address.EXTRACTED METADATAJellyFetch extracts metadata and saves it as .info.json files. The UI parses these files to display detailed information. The following fields are actively extracted and utilized:is_live (boolean): Whether this video is a live stream or a fixed-length video[cite: 5].duration (numeric): Length of the video[cite: 5].extractor (string): Name of the extractor[cite: 5].playlist_id (string): Identifier of the playlist that contains the video[cite: 5].playlist_title (string): Name of the playlist that contains the video[cite: 5].playlist_count (numeric): Total number of items in the playlist. May not be known if entire playlist is not extracted[cite: 5].EXAMPLESBash# Boot the isolated JellyFetch container in detached mode
+$ docker compose up --build -d
+
+# Download and route a standard video via CLI
+$ download [https://www.youtube.com/watch?v=](https://www.youtube.com/watch?v=)...
+
+# Download the best format that contains video,
+# and if it doesn't already have an audio stream, merge it with best audio-only format[cite: 5].
+$ download mkv [https://www.youtube.com/watch?v=](https://www.youtube.com/watch?v=)...
+
+# Download best video available via direct link over HTTP/HTTPS protocol,
+# or the best video available via any protocol if there is no such video[cite: 5].
+$ download auto [https://www.youtube.com/watch?v=](https://www.youtube.com/watch?v=)...
+MAINTENANCE AND CACHERebuilding: If you modify server.py, index.html, or alter your .env configuration, you must rebuild the Docker container (docker compose up --build -d) to apply the changes.System Cache: To maintain optimal extraction speeds and bypass stale signatures, yt-dlp utilizes a local cache. If downloads fail due to signature errors, navigate to the System Settings tab in the Web UI and click Flush Cache to instantly clear the internal cache safely without restarting the container.
