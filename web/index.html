@@ -1,0 +1,1326 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JellyFetch | Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        brand: '#a855f7',
+                        brandHover: '#9333ea',
+                        surface: '#181818',
+                        surfaceHover: '#282828',
+                        backgroundTop: '#1e1e1e',
+                        backgroundBottom: '#121212',
+                        spotifyGreen: '#1db954'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #121212; color: #ffffff; overflow: hidden; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+        
+        .view-section { display: none; opacity: 0; transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
+        .view-section.active { display: flex; opacity: 1; flex-direction: column; }
+        
+        @keyframes shimmer { 100% { transform: translateX(100%); } }
+        .skeleton { position: relative; overflow: hidden; background-color: #242424; }
+        .skeleton::after {
+            position: absolute; top: 0; right: 0; bottom: 0; left: 0; transform: translateX(-100%);
+            background-image: linear-gradient(90deg, rgba(255,255,255,0) 0, rgba(255,255,255,0.04) 20%, rgba(255,255,255,0.08) 60%, rgba(255,255,255,0));
+            animation: shimmer 1.8s infinite; content: '';
+        }
+
+        .media-card { transition: transform 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease; }
+        .media-card:hover { transform: translateY(-4px); box-shadow: 0 12px 24px -10px rgba(0,0,0,0.8); }
+        .media-card:hover .play-overlay { opacity: 1; }
+        
+        .pill-btn.active { background-color: #ffffff; color: #000000; font-weight: 600; }
+        
+        /* Multi-Select & Highlight States */
+        .row-selected { background-color: rgba(168, 85, 247, 0.15) !important; border-left: 3px solid #a855f7; }
+        
+        /* Spotify Scrubber */
+        input[type="range"] { accent-color: #a855f7; }
+
+        /* Hardware Canvas Visualizer Overlay */
+        #audioVisualizer { position: absolute; bottom: 0; left: 0; right: 0; height: 100%; width: 100%; pointer-events: none; opacity: 0.15; z-index: 0; }
+
+        /* Drag and Drop Overlay */
+        #dragOverlay { transition: opacity 0.2s, background-color 0.2s; }
+    </style>
+</head>
+<body class="flex h-screen bg-black select-none">
+
+    <!-- GLOBAL DRAG & DROP OVERLAY -->
+    <div id="dragOverlay" class="fixed inset-0 bg-brand/20 backdrop-blur-sm z-[100] hidden flex flex-col items-center justify-center border-4 border-dashed border-brand m-4 rounded-3xl pointer-events-none">
+        <div class="w-32 h-32 bg-black rounded-full flex items-center justify-center shadow-2xl mb-6 animate-bounce">
+            <i class="fa-solid fa-cloud-arrow-down text-5xl text-brand"></i>
+        </div>
+        <h2 class="text-4xl font-black text-white drop-shadow-xl">Drop URL to Acquire</h2>
+    </div>
+
+    <!-- SPOTIFY SIDEBAR -->
+    <aside class="w-64 bg-black flex flex-col p-5 flex-shrink-0 z-20 justify-between relative">
+        <div>
+            <!-- Branding Header -->
+            <div class="flex items-center space-x-3 text-2xl font-black tracking-tight text-white mb-8 cursor-pointer" onclick="window.location.hash = ''">
+                <div class="w-9 h-9 bg-brand rounded-xl flex items-center justify-center shadow-lg shadow-brand/30">
+                    <i class="fa-solid fa-bolt text-white text-base"></i>
+                </div>
+                <span id="brandName">JellyFetch</span>
+            </div>
+            
+            <!-- Library Navigation -->
+            <nav class="space-y-1.5">
+                <p class="text-[11px] font-bold text-gray-500 tracking-wider uppercase px-3 mb-2">Core Media</p>
+                <a href="#movies" class="nav-link w-full flex items-center space-x-4 px-3.5 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-surface transition group" data-target="movies">
+                    <i class="fa-solid fa-film text-lg group-hover:text-brand w-5 text-center"></i>
+                    <span class="font-semibold text-sm">Movies</span>
+                </a>
+                <a href="#tv" class="nav-link w-full flex items-center space-x-4 px-3.5 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-surface transition group" data-target="tv">
+                    <i class="fa-solid fa-tv text-lg group-hover:text-brand w-5 text-center"></i>
+                    <span class="font-semibold text-sm">TV Shows</span>
+                </a>
+                <a href="#music" class="nav-link w-full flex items-center space-x-4 px-3.5 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-surface transition group" data-target="music">
+                    <i class="fa-solid fa-music text-lg group-hover:text-brand w-5 text-center"></i>
+                    <span class="font-semibold text-sm">Music</span>
+                </a>
+                <a href="#social" class="nav-link w-full flex items-center space-x-4 px-3.5 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-surface transition group" data-target="social">
+                    <i class="fa-brands fa-tiktok text-lg group-hover:text-brand w-5 text-center"></i>
+                    <span class="font-semibold text-sm">Social Clips</span>
+                </a>
+            </nav>
+
+            <!-- Playlists / Quick Views -->
+            <nav class="space-y-1.5 mt-6 border-t border-gray-900 pt-5">
+                <p class="text-[11px] font-bold text-gray-500 tracking-wider uppercase px-3 mb-2">Workspace</p>
+                <button onclick="App.toggleInspectModal()" class="w-full flex items-center space-x-4 px-3.5 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-surface transition group text-left">
+                    <i class="fa-solid fa-magnifying-glass-chart text-lg group-hover:text-brand w-5 text-center"></i>
+                    <span class="font-semibold text-sm">Inspect URL</span>
+                </button>
+                <button onclick="App.toggleQueueDrawer()" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-surface transition group text-left">
+                    <div class="flex items-center space-x-4">
+                        <i class="fa-solid fa-list-ol text-lg group-hover:text-brand w-5 text-center"></i>
+                        <span class="font-semibold text-sm">Play Queue</span>
+                    </div>
+                    <span id="sidebarQueueBadge" class="hidden bg-white text-black text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
+                </button>
+                <button onclick="App.toggleTaskDrawer()" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-surface transition group text-left">
+                    <div class="flex items-center space-x-4">
+                        <i class="fa-solid fa-microchip text-lg group-hover:text-brand w-5 text-center"></i>
+                        <span class="font-semibold text-sm">Task Manager</span>
+                    </div>
+                    <span id="sidebarTaskBadge" class="hidden bg-brand text-[10px] font-bold px-2 py-0.5 rounded-full text-white">0</span>
+                </button>
+            </nav>
+        </div>
+
+        <!-- System Settings & Sync -->
+        <div class="space-y-2 border-t border-gray-900 pt-4">
+            <button onclick="App.triggerJellyfinSync()" class="w-full flex items-center justify-center space-x-2 py-2.5 rounded-lg bg-surface hover:bg-surfaceHover text-xs font-bold text-gray-300 hover:text-white transition border border-gray-800">
+                <i class="fa-solid fa-rotate text-brand"></i>
+                <span>Sync Jellyfin</span>
+            </button>
+            <a href="#settings" class="nav-link w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-surface transition group" data-target="settings">
+                <i class="fa-solid fa-gear text-base group-hover:text-gray-100"></i>
+                <span class="font-medium text-xs">System Settings</span>
+            </a>
+        </div>
+    </aside>
+
+    <!-- MAIN APP CANVAS -->
+    <main class="flex-1 flex flex-col relative bg-gradient-to-b from-backgroundTop to-backgroundBottom rounded-tl-2xl overflow-hidden shadow-2xl">
+        
+        <!-- YOUTUBE TOP ACQUISITION BAR -->
+        <header class="h-[76px] flex items-center justify-between px-8 bg-transparent z-10 border-b border-white/[0.04]">
+            
+            <div class="flex items-center space-x-3 w-48">
+                <button onclick="window.history.back()" class="w-8 h-8 rounded-full bg-black/40 hover:bg-black flex items-center justify-center text-gray-400 hover:text-white transition">
+                    <i class="fa-solid fa-chevron-left text-xs"></i>
+                </button>
+                <button onclick="window.history.forward()" class="w-8 h-8 rounded-full bg-black/40 hover:bg-black flex items-center justify-center text-gray-400 hover:text-white transition">
+                    <i class="fa-solid fa-chevron-right text-xs"></i>
+                </button>
+            </div>
+
+            <!-- YouTube Search Bar -->
+            <div class="flex-1 flex justify-center max-w-3xl">
+                <form id="downloadForm" class="flex w-full items-center bg-[#242424]/90 backdrop-blur-md rounded-full border border-gray-700/80 hover:border-gray-500 focus-within:border-brand overflow-hidden transition-all shadow-xl">
+                    <select id="formatSelect" class="bg-transparent text-gray-300 px-4 py-2.5 border-r border-gray-700/80 focus:outline-none font-semibold cursor-pointer text-xs h-full hover:bg-surface transition">
+                        <option value="auto" class="bg-surface">Auto-Route</option>
+                        <option value="mp3" class="bg-surface">Audio (MP3)</option>
+                        <option value="flac" class="bg-surface">Audio (FLAC)</option>
+                        <option value="mp4" class="bg-surface">Video (MP4)</option>
+                        <option value="mkv" class="bg-surface">Video (MKV)</option>
+                        <option value="all" class="bg-surface">Archive All</option>
+                    </select>
+                    
+                    <div class="flex-1 flex items-center px-4 relative">
+                        <i class="fa-solid fa-link text-gray-500 mr-2.5 text-sm"></i>
+                        <input type="url" id="urlInput" placeholder="Paste YouTube, TikTok, or Media link to acquire..." class="w-full bg-transparent text-white py-2 focus:outline-none placeholder-gray-500 text-sm font-medium" required autocomplete="off">
+                    </div>
+                    
+                    <button type="submit" class="px-7 py-2.5 bg-brand hover:bg-brandHover text-white font-bold transition flex items-center space-x-2 text-xs h-full shadow-lg shadow-brand/20">
+                        <i class="fa-solid fa-arrow-down"></i>
+                        <span>Acquire</span>
+                    </button>
+                </form>
+            </div>
+            
+            <!-- Quick Profile & Shortcut Help -->
+            <div class="w-48 flex items-center justify-end space-x-3">
+                <button onclick="App.toggleShortcutsModal()" class="w-8 h-8 rounded-full bg-surface hover:bg-surfaceHover border border-gray-800 flex items-center justify-center text-gray-400 hover:text-white transition" title="Keyboard Shortcuts">
+                    <i class="fa-solid fa-keyboard text-xs"></i>
+                </button>
+                <div class="w-9 h-9 rounded-full bg-gradient-to-tr from-brand to-pink-500 flex items-center justify-center text-xs font-black shadow-lg">
+                    JF
+                </div>
+            </div>
+        </header>
+
+        <!-- VIEW CONTAINER -->
+        <div class="flex-1 overflow-y-auto px-8 pb-32 pt-6 relative" id="scrollContainer">
+            
+            <!-- LIBRARY VIEW -->
+            <section id="view-library" class="view-section active h-full flex flex-col">
+                
+                <!-- Category Toolbar + Spotify Filter Pills -->
+                <div class="flex flex-col space-y-4 mb-6 sticky top-0 bg-gradient-to-b from-backgroundTop via-backgroundTop to-transparent pb-4 z-10 pt-2">
+                    <div class="flex justify-between items-end">
+                        <div class="flex items-center space-x-4">
+                            <h2 id="category-title" class="text-4xl font-black tracking-tight capitalize drop-shadow-md">Library</h2>
+                            <span id="item-count-badge" class="bg-surface border border-gray-800 text-gray-400 text-xs font-bold px-2.5 py-1 rounded-full">0 items</span>
+                        </div>
+                        
+                        <!-- Search & View Toggles -->
+                        <div class="flex items-center space-x-3">
+                            <div class="relative">
+                                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-500 text-xs"></i>
+                                <input type="text" id="searchInput" placeholder="Search in category..." class="pl-9 pr-4 py-1.5 bg-[#242424] rounded-full text-xs focus:outline-none focus:ring-1 focus:ring-brand border border-gray-700/80 w-52 transition-all">
+                            </div>
+                            
+                            <select id="sortSelect" class="bg-[#242424] text-xs font-semibold text-gray-300 px-3.5 py-1.5 rounded-full border border-gray-700/80 focus:outline-none cursor-pointer hover:bg-surface">
+                                <option value="newest">Newest Added</option>
+                                <option value="oldest">Oldest Added</option>
+                                <option value="largest">Largest Size</option>
+                                <option value="smallest">Smallest Size</option>
+                                <option value="az">Name (A-Z)</option>
+                            </select>
+
+                            <!-- Grid vs Table Toggle -->
+                            <div class="flex bg-[#242424] rounded-full p-1 border border-gray-700/80">
+                                <button id="viewGridBtn" onclick="App.setViewMode('grid')" class="px-3 py-1 rounded-full text-xs font-bold bg-brand text-white transition">
+                                    <i class="fa-solid fa-grip"></i>
+                                </button>
+                                <button id="viewTableBtn" onclick="App.setViewMode('table')" class="px-3 py-1 rounded-full text-xs font-bold text-gray-400 hover:text-white transition">
+                                    <i class="fa-solid fa-list"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Spotify Filter Pills -->
+                    <div class="flex items-center space-x-2 pt-1 overflow-x-auto">
+                        <button class="pill-btn active px-3.5 py-1 rounded-full text-xs font-semibold bg-[#282828] hover:bg-[#383838] transition text-gray-300" onclick="App.setFilter('all', this)">All</button>
+                        <button class="pill-btn px-3.5 py-1 rounded-full text-xs font-semibold bg-[#282828] hover:bg-[#383838] transition text-gray-300" onclick="App.setFilter('video', this)">Videos Only</button>
+                        <button class="pill-btn px-3.5 py-1 rounded-full text-xs font-semibold bg-[#282828] hover:bg-[#383838] transition text-gray-300" onclick="App.setFilter('audio', this)">Audio Only</button>
+                        <button class="pill-btn px-3.5 py-1 rounded-full text-xs font-semibold bg-[#282828] hover:bg-[#383838] transition text-gray-300" onclick="App.setFilter('favorites', this)">Favorites</button>
+                        <button class="pill-btn px-3.5 py-1 rounded-full text-xs font-semibold bg-[#282828] hover:bg-[#383838] transition text-gray-300" onclick="App.setFilter('large', this)">Large (>100MB)</button>
+                    </div>
+
+                    <!-- Floating Action Bar for Bulk Selection -->
+                    <div id="bulkActionBar" class="hidden w-full bg-brand/10 border border-brand/40 rounded-lg p-3 flex items-center justify-between animate-pulse">
+                        <span class="text-brand font-bold text-sm" id="bulkCountText">0 items selected</span>
+                        <div class="flex space-x-3">
+                            <button onclick="App.bulkAddQueue()" class="text-white hover:text-brand bg-black px-3 py-1 rounded text-xs font-bold transition">Add to Queue</button>
+                            <button onclick="App.bulkDelete()" class="text-white hover:text-red-500 bg-black px-3 py-1 rounded text-xs font-bold transition">Delete Selected</button>
+                            <button onclick="App.clearSelection()" class="text-gray-400 hover:text-white px-2 py-1"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Grid Layout View -->
+                <div id="media-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 pb-20"></div>
+
+                <!-- Spotify Tracklist Table View -->
+                <div id="media-table-container" class="hidden pb-20">
+                    <table class="w-full text-left text-sm text-gray-400 border-collapse">
+                        <thead class="text-xs uppercase text-gray-500 border-b border-gray-800">
+                            <tr>
+                                <th class="py-3 px-4 w-12">#</th>
+                                <th class="py-3 px-4">Title</th>
+                                <th class="py-3 px-4">Metadata</th>
+                                <th class="py-3 px-4">Type</th>
+                                <th class="py-3 px-4">Date Added</th>
+                                <th class="py-3 px-4">Size</th>
+                                <th class="py-3 px-4 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="media-table-body"></tbody>
+                    </table>
+                </div>
+
+            </section>
+
+            <!-- FULL ROBUST SYSTEM SETTINGS VIEW -->
+            <section id="view-settings" class="view-section h-full max-w-7xl mx-auto w-full">
+                <h2 class="text-4xl font-black tracking-tight mb-8 drop-shadow-md">System & Integrations</h2>
+                
+                <div class="grid grid-cols-1 xl:grid-cols-2 gap-8 pb-12">
+                    
+                    <!-- Storage Breakdown Card -->
+                    <div class="bg-surface rounded-2xl p-7 shadow-xl border border-gray-800 relative overflow-hidden group">
+                        <div class="absolute -right-6 -top-6 text-9xl text-white opacity-[0.02] group-hover:opacity-[0.05] transition-opacity"><i class="fa-solid fa-hard-drive"></i></div>
+                        <h3 class="text-lg font-bold mb-5 flex items-center relative"><i class="fa-solid fa-hard-drive mr-3 text-brand"></i>Storage Allocation</h3>
+                        <div id="storage-container" class="space-y-4 relative z-10"></div>
+                    </div>
+
+                    <!-- Extraction Engine Card -->
+                    <div class="bg-surface rounded-2xl p-7 shadow-xl border border-gray-800 relative overflow-hidden group">
+                        <div class="absolute -right-6 -top-6 text-9xl text-white opacity-[0.02] group-hover:opacity-[0.05] transition-opacity"><i class="fa-solid fa-microchip"></i></div>
+                        <h3 class="text-lg font-bold mb-5 flex items-center relative"><i class="fa-solid fa-bolt mr-3 text-yellow-500"></i>Extraction Engine</h3>
+                        <div id="engine-container" class="space-y-3 relative z-10 text-sm"></div>
+                    </div>
+
+                    <!-- Environment Logic Card -->
+                    <div class="bg-surface rounded-2xl p-7 shadow-xl border border-gray-800 relative overflow-hidden group">
+                        <div class="absolute -right-6 -top-6 text-9xl text-white opacity-[0.02] group-hover:opacity-[0.05] transition-opacity"><i class="fa-solid fa-folder-tree"></i></div>
+                        <h3 class="text-lg font-bold mb-5 flex items-center relative"><i class="fa-solid fa-network-wired mr-3 text-blue-500"></i>Environment Mounts</h3>
+                        <div id="config-container" class="space-y-3 relative z-10 text-xs"></div>
+                    </div>
+
+                    <!-- Integrations & Maintenance Card -->
+                    <div class="bg-surface rounded-2xl p-7 shadow-xl border border-gray-800 relative overflow-hidden group">
+                        <div class="absolute -right-6 -top-6 text-9xl text-white opacity-[0.02] group-hover:opacity-[0.05] transition-opacity"><i class="fa-solid fa-server"></i></div>
+                        <h3 class="text-lg font-bold mb-5 flex items-center relative"><i class="fa-solid fa-plug mr-3 text-green-500"></i>Services & Maintenance</h3>
+                        <div id="integrations-container" class="space-y-3 relative z-10 text-sm"></div>
+                        
+                        <div class="mt-5 pt-5 border-t border-gray-800/60 relative z-10">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <p class="text-white font-bold text-sm">System Cache</p>
+                                    <p class="text-xs text-gray-500 mt-1">Clear yt-dlp temporary signatures.</p>
+                                </div>
+                                <button onclick="App.clearSystemCache()" class="bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30 px-4 py-2 rounded-lg text-xs font-bold transition flex items-center shadow-lg"><i class="fa-solid fa-broom mr-2"></i>Flush Cache</button>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <!-- SPOTIFY BOTTOM MEDIA PLAYER -->
+    <footer id="bottom-player" class="fixed bottom-0 left-0 right-0 h-24 bg-[#181818] border-t border-gray-800 px-6 flex items-center justify-between z-40 transition-transform duration-300 overflow-hidden">
+        
+        <!-- Audio Canvas Visualizer -->
+        <canvas id="audioVisualizer"></canvas>
+
+        <!-- Currently Playing Meta -->
+        <div class="flex items-center space-x-4 w-1/4 relative z-10">
+            <div id="player-thumb" class="w-14 h-14 bg-black rounded-lg overflow-hidden flex items-center justify-center border border-gray-800 flex-shrink-0 relative">
+                <i class="fa-solid fa-music text-gray-600 text-xl"></i>
+            </div>
+            <div class="truncate">
+                <h4 id="player-title" class="text-sm font-bold text-white truncate">No media loaded</h4>
+                <p id="player-category" class="text-xs text-gray-400 font-medium capitalize mt-0.5">Select a track or video</p>
+            </div>
+            <button id="player-fav-btn" onclick="App.toggleCurrentFavorite()" class="text-gray-500 hover:text-brand transition p-2">
+                <i class="fa-regular fa-heart text-base"></i>
+            </button>
+        </div>
+
+        <!-- Center Controls & Scrubber -->
+        <div class="flex flex-col items-center max-w-xl w-2/4 relative z-10">
+            <div class="flex items-center space-x-6 mb-2">
+                <button onclick="App.prevTrack()" class="text-gray-400 hover:text-white transition"><i class="fa-solid fa-backward-step text-sm"></i></button>
+                <button id="playPauseBtn" onclick="App.togglePlay()" class="w-9 h-9 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 transition shadow-lg">
+                    <i class="fa-solid fa-play ml-0.5 text-sm"></i>
+                </button>
+                <button onclick="App.nextTrack()" class="text-gray-400 hover:text-white transition"><i class="fa-solid fa-forward-step text-sm"></i></button>
+            </div>
+            <div class="w-full flex items-center space-x-3 text-xs font-semibold text-gray-400">
+                <span id="timeCurrent">0:00</span>
+                <input type="range" id="seekSlider" min="0" max="100" value="0" class="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                <span id="timeTotal">0:00</span>
+            </div>
+        </div>
+
+        <!-- Volume & Theater Toggle -->
+        <div class="flex items-center justify-end space-x-4 w-1/4 relative z-10">
+            <button onclick="App.toggleQueueDrawer()" class="text-gray-400 hover:text-white p-2" title="Up Next Queue"><i class="fa-solid fa-list-ol text-sm"></i></button>
+            <button onclick="App.toggleMute()" class="text-gray-400 hover:text-white"><i id="volIcon" class="fa-solid fa-volume-high text-sm"></i></button>
+            <input type="range" id="volSlider" min="0" max="1" step="0.05" value="1" class="w-24 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+            <button onclick="App.openTheaterModal()" id="theaterBtn" class="text-gray-400 hover:text-brand p-2" title="YouTube Theater View"><i class="fa-solid fa-expand text-sm"></i></button>
+        </div>
+
+        <!-- Real Hidden Audio Engine -->
+        <audio id="coreAudioEngine" preload="metadata" crossorigin="anonymous"></audio>
+    </footer>
+
+    <!-- YOUTUBE THEATER / VIDEO MODAL -->
+    <div id="videoModal" class="fixed inset-0 bg-black/95 backdrop-blur-xl z-50 hidden flex flex-col justify-center items-center p-8">
+        <div class="w-full max-w-6xl flex justify-between items-center mb-4">
+            <h3 id="modalVideoTitle" class="text-lg font-bold text-white truncate drop-shadow">Video Theater</h3>
+            <div class="flex space-x-4">
+                <button onclick="App.togglePiP()" class="w-10 h-10 rounded-full bg-surface hover:bg-surfaceHover border border-gray-700 flex items-center justify-center text-white transition" title="Picture-in-Picture">
+                    <i class="fa-solid fa-clone text-sm"></i>
+                </button>
+                <button onclick="App.closeTheaterModal()" class="w-10 h-10 rounded-full bg-surface hover:bg-surfaceHover border border-gray-700 flex items-center justify-center text-white transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+        </div>
+        <div class="w-full max-w-6xl bg-black rounded-2xl overflow-hidden aspect-video relative shadow-[0_0_50px_rgba(168,85,247,0.15)] border border-gray-800">
+            <video id="coreVideoEngine" controls class="w-full h-full object-contain" crossorigin="anonymous"></video>
+        </div>
+    </div>
+
+    <!-- URL METADATA INSPECTOR MODAL -->
+    <div id="inspectModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-6">
+        <div class="bg-surface rounded-2xl border border-gray-800 max-w-lg w-full p-6 shadow-2xl">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold">Inspect Media URL</h3>
+                <button onclick="App.toggleInspectModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="flex space-x-2 mb-4">
+                <input type="url" id="inspectInput" placeholder="Paste URL to analyze..." class="flex-1 bg-black border border-gray-800 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-brand">
+                <button onclick="App.runInspector()" class="bg-brand hover:bg-brandHover px-4 py-2 rounded-lg text-sm font-bold text-white transition shadow-lg">Inspect</button>
+            </div>
+            <div id="inspectResult" class="hidden space-y-3 bg-black/40 p-4 rounded-xl border border-gray-800/80 text-sm"></div>
+        </div>
+    </div>
+
+    <!-- TASK MANAGER DRAWER -->
+    <div id="taskDrawer" class="fixed right-0 top-0 bottom-24 w-96 bg-surface border-l border-gray-800 z-30 transform translate-x-full transition-transform duration-300 p-6 flex flex-col shadow-2xl">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-lg font-bold flex items-center"><i class="fa-solid fa-microchip mr-2.5 text-brand"></i>Active Downloads</h3>
+            <button onclick="App.toggleTaskDrawer()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div id="taskDrawerList" class="flex-1 overflow-y-auto space-y-3"></div>
+    </div>
+
+    <!-- UP NEXT QUEUE DRAWER -->
+    <div id="queueDrawer" class="fixed right-0 top-0 bottom-24 w-96 bg-[#151515] border-l border-gray-800 z-30 transform translate-x-full transition-transform duration-300 p-6 flex flex-col shadow-2xl">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-lg font-bold flex items-center"><i class="fa-solid fa-list-ol mr-2.5 text-white"></i>Play Queue</h3>
+            <div class="flex space-x-3">
+                <button onclick="App.clearQueue()" class="text-xs font-bold text-gray-500 hover:text-red-400">Clear</button>
+                <button onclick="App.toggleQueueDrawer()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+        </div>
+        <div id="queueDrawerList" class="flex-1 overflow-y-auto space-y-2"></div>
+    </div>
+
+    <!-- SHORTCUTS HELP MODAL -->
+    <div id="shortcutsModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-6">
+        <div class="bg-surface rounded-2xl border border-gray-800 max-w-md w-full p-6 shadow-2xl text-sm">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold">Keyboard Shortcuts</h3>
+                <button onclick="App.toggleShortcutsModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-3">
+                <div class="flex justify-between py-1 border-b border-gray-800"><span>Play / Pause</span><kbd class="bg-black px-2 py-0.5 rounded text-brand font-mono font-bold">Space</kbd></div>
+                <div class="flex justify-between py-1 border-b border-gray-800"><span>Mute Audio</span><kbd class="bg-black px-2 py-0.5 rounded text-brand font-mono font-bold">M</kbd></div>
+                <div class="flex justify-between py-1 border-b border-gray-800"><span>Fullscreen Video</span><kbd class="bg-black px-2 py-0.5 rounded text-brand font-mono font-bold">F</kbd></div>
+                <div class="flex justify-between py-1 border-b border-gray-800"><span>Focus Search Bar</span><kbd class="bg-black px-2 py-0.5 rounded text-brand font-mono font-bold">/</kbd></div>
+                <div class="flex justify-between py-1 border-b border-gray-800"><span>Multi-Select (Table)</span><kbd class="bg-black px-2 py-0.5 rounded text-brand font-mono font-bold">Shift + Click</kbd></div>
+                <div class="flex justify-between py-1"><span>Close Any Modal</span><kbd class="bg-black px-2 py-0.5 rounded text-brand font-mono font-bold">Esc</kbd></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CONTEXT MENU -->
+    <div id="context-menu" class="fixed hidden bg-[#242424] border border-gray-700/80 rounded-xl py-1 z-50 w-52 text-xs font-semibold shadow-2xl">
+        <button id="ctx-play" class="w-full text-left px-4 py-2 hover:bg-[#343434] flex items-center"><i class="fa-solid fa-play w-5 text-brand"></i> Play Immediately</button>
+        <button id="ctx-queue" class="w-full text-left px-4 py-2 hover:bg-[#343434] flex items-center"><i class="fa-solid fa-plus w-5 text-gray-300"></i> Add to Queue</button>
+        <button id="ctx-fav" class="w-full text-left px-4 py-2 hover:bg-[#343434] flex items-center"><i class="fa-solid fa-heart w-5 text-pink-500"></i> Toggle Favorite</button>
+        <button id="ctx-copy" class="w-full text-left px-4 py-2 hover:bg-[#343434] flex items-center"><i class="fa-solid fa-copy w-5 text-gray-400"></i> Copy Filename</button>
+        <div class="border-t border-gray-700 my-1"></div>
+        <button id="ctx-delete" class="w-full text-left px-4 py-2 hover:bg-red-600 hover:text-white flex items-center text-red-400 transition-colors"><i class="fa-solid fa-trash w-5"></i> Delete Permanently</button>
+    </div>
+
+    <!-- TOAST NOTIFICATIONS -->
+    <div id="toast-container" class="fixed bottom-28 right-6 flex flex-col space-y-3 z-50 pointer-events-none"></div>
+
+    <!-- APPLICATION JAVASCRIPT CORE -->
+    <script>
+        const App = {
+            state: {
+                currentCategory: 'movies',
+                viewMode: 'grid',
+                activeFilter: 'all',
+                files: [],
+                filteredFiles: [],
+                favorites: JSON.parse(localStorage.getItem('jf_favorites') || '[]'),
+                
+                // Playback Queue System
+                queue: [],
+                currentQueueIndex: -1,
+                
+                // Multi-select System
+                selectedRows: new Set(),
+                lastSelectedIdx: null,
+
+                // Visualizer
+                audioCtx: null,
+                analyser: null,
+                source: null,
+
+                systemConfig: null,
+                pollingInterval: null,
+                contextTarget: null
+            },
+
+            // --- HARDWARE AUDIO VISUALIZER ---
+            initVisualizer: () => {
+                const canvas = document.getElementById('audioVisualizer');
+                const ctx = canvas.getContext('2d');
+                const audio = document.getElementById('coreAudioEngine');
+                
+                const resize = () => { canvas.width = window.innerWidth; canvas.height = 96; };
+                window.addEventListener('resize', resize);
+                resize();
+
+                audio.addEventListener('play', () => {
+                    if (!App.state.audioCtx) {
+                        App.state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                        App.state.analyser = App.state.audioCtx.createAnalyser();
+                        App.state.source = App.state.audioCtx.createMediaElementSource(audio);
+                        App.state.source.connect(App.state.analyser);
+                        App.state.analyser.connect(App.state.audioCtx.destination);
+                        App.state.analyser.fftSize = 256;
+                    }
+                    if(App.state.audioCtx.state === 'suspended') App.state.audioCtx.resume();
+                    
+                    const bufferLength = App.state.analyser.frequencyBinCount;
+                    const dataArray = new Uint8Array(bufferLength);
+                    
+                    const draw = () => {
+                        if (audio.paused) { ctx.clearRect(0, 0, canvas.width, canvas.height); return; }
+                        requestAnimationFrame(draw);
+                        App.state.analyser.getByteFrequencyData(dataArray);
+                        
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+                        const barWidth = (canvas.width / bufferLength) * 2.5;
+                        let barHeight;
+                        let x = 0;
+                        
+                        for(let i = 0; i < bufferLength; i++) {
+                            barHeight = dataArray[i] / 2.5;
+                            const gradient = ctx.createLinearGradient(0, canvas.height, 0, 0);
+                            gradient.addColorStop(0, '#a855f7');
+                            gradient.addColorStop(1, '#d8b4fe');
+                            
+                            ctx.fillStyle = gradient;
+                            ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+                            x += barWidth + 1;
+                        }
+                    };
+                    draw();
+                });
+            },
+
+            // --- AUDIO/VIDEO PLAYBACK CONTROLLERS ---
+            
+            playMedia: (file, addToQueue = true) => {
+                if (addToQueue) {
+                    App.state.queue = [file];
+                    App.state.currentQueueIndex = 0;
+                    App.renderQueue();
+                }
+
+                const streamUrl = `/api/stream/${file.category}/${encodeURIComponent(file.rel_path)}`;
+                const audio = document.getElementById('coreAudioEngine');
+                const video = document.getElementById('coreVideoEngine');
+
+                document.getElementById('player-title').innerText = file.name;
+                document.getElementById('player-category').innerText = file.category;
+                
+                const thumbBox = document.getElementById('player-thumb');
+                if (file.has_thumbnail) {
+                    thumbBox.innerHTML = `<img src="/api/thumbnail/${file.category}/${encodeURIComponent(file.thumbnail_file)}" class="w-full h-full object-cover shadow-lg">`;
+                } else {
+                    thumbBox.innerHTML = `<i class="fa-solid ${file.is_audio ? 'fa-music' : 'fa-film'} text-gray-600 text-xl"></i>`;
+                }
+
+                App.updateFavButtonState(file.name);
+
+                if (file.is_audio) {
+                    video.pause();
+                    App.closeTheaterModal();
+                    audio.src = streamUrl;
+                    audio.play().catch(e => console.log(e));
+                } else {
+                    audio.pause();
+                    document.getElementById('modalVideoTitle').innerText = file.name;
+                    video.src = streamUrl;
+                    video.play().catch(e => console.log(e));
+                    App.openTheaterModal();
+                }
+            },
+
+            togglePlay: () => {
+                const audio = document.getElementById('coreAudioEngine');
+                const video = document.getElementById('coreVideoEngine');
+                const active = audio.src && !audio.paused ? audio : (video.src && !video.paused ? video : (audio.src ? audio : video));
+                if (!active || !active.src) return;
+                
+                if (active.paused) {
+                    active.play();
+                } else {
+                    active.pause();
+                }
+            },
+            
+            // --- PLAYLIST QUEUE SYSTEM ---
+            
+            enqueueMedia: (file) => {
+                App.state.queue.push(file);
+                if (App.state.queue.length === 1) {
+                    App.playMedia(file, false);
+                }
+                App.renderQueue();
+                App.toast(`Added ${file.name} to Queue`, "success");
+            },
+
+            playQueueItem: (index) => {
+                App.state.currentQueueIndex = index;
+                App.playMedia(App.state.queue[index], false);
+                App.renderQueue();
+            },
+
+            prevTrack: () => {
+                if (App.state.queue.length === 0) return;
+                App.state.currentQueueIndex = (App.state.currentQueueIndex - 1 + App.state.queue.length) % App.state.queue.length;
+                App.playMedia(App.state.queue[App.state.currentQueueIndex], false);
+                App.renderQueue();
+            },
+
+            nextTrack: () => {
+                if (App.state.queue.length === 0) return;
+                App.state.currentQueueIndex = (App.state.currentQueueIndex + 1) % App.state.queue.length;
+                App.playMedia(App.state.queue[App.state.currentQueueIndex], false);
+                App.renderQueue();
+            },
+
+            clearQueue: () => {
+                App.state.queue = [];
+                App.state.currentQueueIndex = -1;
+                App.renderQueue();
+                App.toast("Queue cleared.");
+            },
+
+            renderQueue: () => {
+                const list = document.getElementById('queueDrawerList');
+                const badge = document.getElementById('sidebarQueueBadge');
+                
+                badge.innerText = App.state.queue.length;
+                badge.className = App.state.queue.length > 0 ? "bg-white text-black text-[10px] font-bold px-2 py-0.5 rounded-full inline-block" : "hidden";
+
+                if (App.state.queue.length === 0) {
+                    list.innerHTML = `<p class="text-sm text-gray-500 italic mt-4">Queue is empty.</p>`;
+                    return;
+                }
+                
+                list.innerHTML = App.state.queue.map((q, idx) => `
+                    <div class="flex items-center space-x-3 p-2 rounded-lg ${idx === App.state.currentQueueIndex ? 'bg-brand/20 border border-brand/40' : 'hover:bg-[#222] cursor-pointer'}" onclick="App.playQueueItem(${idx})">
+                        <div class="w-10 h-10 bg-black rounded overflow-hidden flex-shrink-0 relative">
+                            ${idx === App.state.currentQueueIndex ? `<div class="absolute inset-0 bg-black/50 flex items-center justify-center"><i class="fa-solid fa-volume-high text-brand text-xs"></i></div>` : ''}
+                            ${q.has_thumbnail ? `<img src="/api/thumbnail/${q.category}/${encodeURIComponent(q.thumbnail_file)}" class="w-full h-full object-cover">` : `<i class="fa-solid fa-music text-gray-600 m-auto mt-2 block text-center"></i>`}
+                        </div>
+                        <div class="truncate flex-1">
+                            <p class="text-xs font-bold text-white truncate ${idx === App.state.currentQueueIndex ? 'text-brand' : ''}">${q.name}</p>
+                            <p class="text-[10px] text-gray-500 uppercase">${q.ext.replace('.','')}</p>
+                        </div>
+                    </div>
+                `).join('');
+            },
+
+            // --- UI CONTROLS ---
+
+            toggleMute: () => {
+                const audio = document.getElementById('coreAudioEngine');
+                const video = document.getElementById('coreVideoEngine');
+                audio.muted = !audio.muted;
+                video.muted = !video.muted;
+                document.getElementById('volIcon').className = audio.muted ? "fa-solid fa-volume-xmark text-sm" : "fa-solid fa-volume-high text-sm";
+            },
+
+            openTheaterModal: () => document.getElementById('videoModal').classList.remove('hidden'),
+            closeTheaterModal: () => {
+                document.getElementById('videoModal').classList.add('hidden');
+                document.getElementById('coreVideoEngine').pause();
+            },
+            
+            togglePiP: async () => {
+                const video = document.getElementById('coreVideoEngine');
+                if (document.pictureInPictureElement) {
+                    await document.exitPictureInPicture();
+                } else if (document.pictureInPictureEnabled && video.readyState !== 0) {
+                    await video.requestPictureInPicture();
+                    App.closeTheaterModal();
+                }
+            },
+
+            setViewMode: (mode) => {
+                App.state.viewMode = mode;
+                if (mode === 'grid') {
+                    document.getElementById('media-grid').classList.remove('hidden');
+                    document.getElementById('media-table-container').classList.add('hidden');
+                    document.getElementById('viewGridBtn').className = "px-3 py-1 rounded-full text-xs font-bold bg-brand text-white transition shadow";
+                    document.getElementById('viewTableBtn').className = "px-3 py-1 rounded-full text-xs font-bold text-gray-400 hover:text-white transition";
+                } else {
+                    document.getElementById('media-grid').classList.add('hidden');
+                    document.getElementById('media-table-container').classList.remove('hidden');
+                    document.getElementById('viewTableBtn').className = "px-3 py-1 rounded-full text-xs font-bold bg-brand text-white transition shadow";
+                    document.getElementById('viewGridBtn').className = "px-3 py-1 rounded-full text-xs font-bold text-gray-400 hover:text-white transition";
+                }
+                App.clearSelection();
+                App.render();
+            },
+
+            setFilter: (filter, btn) => {
+                App.state.activeFilter = filter;
+                document.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                App.clearSelection();
+                App.handleSearchAndSort();
+            },
+
+            renderSkeletons: () => {
+                document.getElementById('media-grid').innerHTML = Array(10).fill().map(() => `
+                    <div class="bg-surface rounded-2xl overflow-hidden h-64 flex flex-col border border-gray-800/80">
+                        <div class="h-40 skeleton"></div>
+                        <div class="p-4 flex-1 flex flex-col justify-center space-y-2">
+                            <div class="h-4 skeleton rounded w-full"></div>
+                            <div class="h-4 skeleton rounded w-2/3"></div>
+                        </div>
+                    </div>`).join('');
+            },
+
+            // --- MULTI-SELECT & BULK ACTIONS ---
+            
+            toggleRowSelection: (idx, e) => {
+                if (e.shiftKey && App.state.lastSelectedIdx !== null) {
+                    const start = Math.min(App.state.lastSelectedIdx, idx);
+                    const end = Math.max(App.state.lastSelectedIdx, idx);
+                    for (let i = start; i <= end; i++) {
+                        App.state.selectedRows.add(i);
+                    }
+                } else {
+                    if (App.state.selectedRows.has(idx)) {
+                        App.state.selectedRows.delete(idx);
+                    } else {
+                        App.state.selectedRows.add(idx);
+                    }
+                    App.state.lastSelectedIdx = idx;
+                }
+                App.renderTableBody();
+                App.updateBulkActionBar();
+            },
+
+            clearSelection: () => {
+                App.state.selectedRows.clear();
+                App.state.lastSelectedIdx = null;
+                App.renderTableBody();
+                App.updateBulkActionBar();
+            },
+
+            updateBulkActionBar: () => {
+                const bar = document.getElementById('bulkActionBar');
+                const count = App.state.selectedRows.size;
+                if (count > 0) {
+                    bar.classList.remove('hidden');
+                    document.getElementById('bulkCountText').innerText = `${count} item(s) selected`;
+                } else {
+                    bar.classList.add('hidden');
+                }
+            },
+
+            bulkAddQueue: () => {
+                App.state.selectedRows.forEach(idx => App.state.queue.push(App.state.filteredFiles[idx]));
+                if(App.state.queue.length > 0 && App.state.currentQueueIndex === -1) {
+                    App.playMedia(App.state.queue[0], false);
+                    App.state.currentQueueIndex = 0;
+                }
+                App.renderQueue();
+                App.toast(`Added ${App.state.selectedRows.size} items to Queue`, "success");
+                App.clearSelection();
+            },
+
+            bulkDelete: async () => {
+                if (!confirm(`Permanently delete ${App.state.selectedRows.size} items?`)) return;
+                
+                const filesToDelete = Array.from(App.state.selectedRows).map(idx => ({
+                    category: App.state.filteredFiles[idx].category,
+                    filename: App.state.filteredFiles[idx].name
+                }));
+
+                try {
+                    const res = await fetch('/api/delete', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ files: filesToDelete })
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                        App.toast(data.message, "success");
+                        App.clearSelection();
+                        App.fetchLibrary(App.state.currentCategory);
+                    } else {
+                        App.toast(data.error, "error");
+                    }
+                } catch (e) { App.toast("Bulk deletion failed", "error"); }
+            },
+
+            // --- RENDER ENGINE ---
+
+            render: () => {
+                document.getElementById('item-count-badge').innerText = `${App.state.filteredFiles.length} items`;
+
+                if (App.state.viewMode === 'grid') {
+                    const grid = document.getElementById('media-grid');
+                    if (App.state.filteredFiles.length === 0) {
+                        grid.innerHTML = `<div class="col-span-full py-24 text-center text-gray-500"><i class="fa-regular fa-folder-open text-6xl mb-4 opacity-40"></i><p class="font-bold">No matching files found</p></div>`;
+                        return;
+                    }
+                    grid.innerHTML = App.state.filteredFiles.map((file, idx) => {
+                        let thumbHtml = `<i class="fa-solid ${file.is_audio ? 'fa-music' : 'fa-film'} text-5xl text-gray-700"></i>`;
+                        if (file.has_thumbnail) {
+                            thumbHtml = `<img src="/api/thumbnail/${file.category}/${encodeURIComponent(file.thumbnail_file)}" class="w-full h-full object-cover">`;
+                        }
+                        const isFav = App.state.favorites.includes(file.name);
+                        
+                        const meta = file.metadata || {};
+                        const uploaderBadge = meta.uploader ? `<span class="bg-black/50 px-1.5 py-0.5 rounded border border-gray-700 mt-1 inline-block truncate max-w-full" title="${meta.uploader}"><i class="fa-solid fa-user-circle mr-1"></i>${meta.uploader}</span>` : '';
+
+                        return `
+                        <div class="bg-surface rounded-2xl overflow-hidden border border-gray-800/80 media-card flex flex-col relative"
+                             oncontextmenu="App.showContextMenu(event, '${file.category}', '${file.name}', '${file.rel_path}')">
+                            <div class="h-40 bg-[#111] relative flex items-center justify-center border-b border-gray-800">
+                                ${thumbHtml}
+                                <div onclick="App.playMedia(App.state.filteredFiles[${idx}])" class="play-overlay absolute inset-0 bg-black/50 backdrop-blur-[2px] flex items-center justify-center opacity-0 transition-opacity cursor-pointer">
+                                    <div class="w-12 h-12 bg-brand hover:bg-brandHover rounded-full flex items-center justify-center shadow-2xl transform hover:scale-110 transition">
+                                        <i class="fa-solid fa-play text-white ml-0.5 text-base"></i>
+                                    </div>
+                                </div>
+                                <div class="absolute bottom-2 right-2 bg-black/80 px-2 py-0.5 rounded-md text-[10px] font-bold text-gray-300 border border-gray-700 shadow-md">${meta.duration ? Math.floor(meta.duration/60)+':'+String(meta.duration%60).padStart(2,'0') + ' • ' : ''}${file.size_mb} MB</div>
+                                <div class="absolute top-2 left-2 bg-black/70 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase text-brand border border-brand/30 shadow-md">${file.ext.replace('.','')}</div>
+                                <button onclick="App.toggleFavorite('${file.name}')" class="absolute top-2 right-2 text-xs ${isFav ? 'text-pink-500' : 'text-gray-400 hover:text-white'}">
+                                    <i class="fa-${isFav ? 'solid' : 'regular'} fa-heart drop-shadow-md"></i>
+                                </button>
+                            </div>
+                            <div class="p-4 flex-1 flex flex-col justify-between">
+                                <div>
+                                    <h3 class="text-white font-bold text-sm line-clamp-2 leading-snug" title="${file.name}">${file.name}</h3>
+                                    <div class="text-[10px] text-gray-400 mt-1">${uploaderBadge}</div>
+                                </div>
+                                <div class="flex justify-between items-center mt-3 pt-3 border-t border-gray-800/40">
+                                    <p class="text-gray-500 text-xs font-semibold"><i class="fa-regular fa-clock mr-1"></i> ${App.timeAgo(file.timestamp)}</p>
+                                    <button onclick="App.showContextMenu(event, '${file.category}', '${file.name}', '${file.rel_path}')" class="text-gray-500 hover:text-white p-1 rounded hover:bg-gray-800 transition">
+                                        <i class="fa-solid fa-ellipsis-vertical px-1.5"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>`;
+                    }).join('');
+                } else {
+                    App.renderTableBody();
+                }
+            },
+
+            renderTableBody: () => {
+                const tbody = document.getElementById('media-table-body');
+                tbody.innerHTML = App.state.filteredFiles.map((file, idx) => {
+                    const isSelected = App.state.selectedRows.has(idx);
+                    const meta = file.metadata || {};
+                    const metaHtml = meta.uploader ? `<span class="text-[10px] bg-black px-1.5 py-0.5 rounded border border-gray-800 text-gray-400"><i class="fa-solid fa-user-circle mr-1"></i>${meta.uploader}</span>` : '<span class="text-gray-600 text-xs">-</span>';
+
+                    return `
+                    <tr class="border-b border-gray-800/40 transition group cursor-pointer ${isSelected ? 'row-selected' : 'hover:bg-surfaceHover'}" 
+                        onclick="App.toggleRowSelection(${idx}, event)"
+                        oncontextmenu="App.showContextMenu(event, '${file.category}', '${file.name}', '${file.rel_path}')">
+                        
+                        <td class="py-3 px-4 font-bold text-gray-500">${idx + 1}</td>
+                        <td class="py-3 px-4 font-semibold text-white flex items-center space-x-3 relative">
+                            <!-- Play Button Overlay on hover -->
+                            <button onclick="event.stopPropagation(); App.playMedia(App.state.filteredFiles[${idx}])" class="opacity-0 group-hover:opacity-100 text-brand text-xs absolute left-0 w-8 h-full flex items-center justify-center hover:scale-125 transition bg-gradient-to-r from-surfaceHover">
+                                <i class="fa-solid fa-play"></i>
+                            </button>
+                            <span class="truncate max-w-sm ml-6" title="${file.name}">${file.name}</span>
+                        </td>
+                        <td class="py-3 px-4">${metaHtml}</td>
+                        <td class="py-3 px-4 uppercase font-mono text-xs font-bold text-gray-400"><span class="bg-gray-800 px-1.5 py-0.5 rounded">${file.ext.replace('.','')}</span></td>
+                        <td class="py-3 px-4 text-xs font-medium text-gray-400">${App.timeAgo(file.timestamp)}</td>
+                        <td class="py-3 px-4 text-xs font-mono text-gray-300">${file.size_mb} MB</td>
+                        <td class="py-3 px-4 text-right">
+                            <button onclick="event.stopPropagation(); App.enqueueMedia(App.state.filteredFiles[${idx}])" class="text-gray-500 hover:text-brand transition mr-3" title="Add to Queue"><i class="fa-solid fa-plus text-xs"></i></button>
+                            <button onclick="event.stopPropagation(); App.deleteMedia('${file.category}', '${file.name}')" class="text-gray-500 hover:text-red-500 transition" title="Delete"><i class="fa-solid fa-trash text-xs"></i></button>
+                        </td>
+                    </tr>
+                `}).join('');
+            },
+
+            // --- DATA CONTROLLERS ---
+
+            fetchLibrary: async (category) => {
+                App.renderSkeletons();
+                try {
+                    const res = await fetch(`/api/library/${category}`);
+                    App.state.files = await res.json();
+                    App.handleSearchAndSort();
+                } catch (err) {
+                    App.toast("Failed to scan directory", "error");
+                }
+            },
+
+            fetchSystem: async () => {
+                try {
+                    const res = await fetch('/api/system');
+                    const data = await res.json();
+                    App.state.systemConfig = data;
+
+                    // Update Settings Bar - Storage
+                    const storage = document.getElementById('storage-container');
+                    if (storage) {
+                        storage.innerHTML = `
+                            <div class="flex justify-between text-xs font-semibold text-gray-300 relative z-10">
+                                <span>${data.storage.used_gb} GB Used</span>
+                                <span>${data.storage.total_gb} GB Total</span>
+                            </div>
+                            <div class="w-full bg-black rounded-full h-2 border border-gray-800 overflow-hidden relative z-10 shadow-inner">
+                                <div class="bg-brand h-2 rounded-full shadow-[0_0_10px_#a855f7]" style="width: ${data.storage.usage_percent}%"></div>
+                            </div>
+                            <div class="space-y-2 pt-4 border-t border-gray-800 relative z-10">
+                                ${Object.entries(data.library_sizes_mb).map(([k,v]) => `
+                                    <div class="flex justify-between text-xs capitalize text-gray-400">
+                                        <span>${k}</span><span class="font-mono text-white bg-black px-1.5 rounded">${(v/1024).toFixed(2)} GB</span>
+                                    </div>`).join('')}
+                            </div>`;
+                    }
+                    
+                    // Update Settings Bar - Engine
+                    const engine = document.getElementById('engine-container');
+                    if (engine) {
+                        engine.innerHTML = `
+                            <div class="flex justify-between items-center p-3 bg-black/40 rounded-lg border border-gray-800/50">
+                                <span class="text-gray-400 font-semibold"><i class="fa-brands fa-python mr-2"></i>Python Runtime</span>
+                                <span class="font-mono text-brand font-bold bg-brand/10 px-2 py-1 rounded border border-brand/20">${data.engine.python_version}</span>
+                            </div>
+                            <div class="flex justify-between items-center p-3 bg-black/40 rounded-lg border border-gray-800/50">
+                                <span class="text-gray-400 font-semibold"><i class="fa-solid fa-download mr-2"></i>yt-dlp Core</span>
+                                <span class="font-mono text-blue-400 font-bold bg-blue-500/10 px-2 py-1 rounded border border-blue-500/20">${data.engine.yt_dlp_version}</span>
+                            </div>
+                            <div class="flex justify-between items-center p-3 bg-black/40 rounded-lg border border-gray-800/50">
+                                <span class="text-gray-400 font-semibold"><i class="fa-solid fa-film mr-2"></i>FFmpeg Library</span>
+                                ${data.engine.ffmpeg_installed 
+                                    ? `<span class="font-mono text-green-400 font-bold bg-green-500/10 px-2 py-1 rounded border border-green-500/20"><i class="fa-solid fa-check mr-1"></i>Installed</span>` 
+                                    : `<span class="font-mono text-red-400 font-bold bg-red-500/10 px-2 py-1 rounded border border-red-500/20"><i class="fa-solid fa-xmark mr-1"></i>Missing</span>`}
+                            </div>
+                            <div class="flex justify-between items-center p-3 bg-black/40 rounded-lg border border-gray-800/50">
+                                <span class="text-gray-400 font-semibold"><i class="fa-solid fa-server mr-2"></i>Host System</span>
+                                <span class="font-mono text-gray-300 font-bold bg-gray-800 px-2 py-1 rounded border border-gray-700">${data.engine.os}</span>
+                            </div>
+                            <div class="flex justify-between items-center p-3 bg-black/40 rounded-lg border border-gray-800/50">
+                                <span class="text-gray-400 font-semibold"><i class="fa-solid fa-stopwatch mr-2"></i>Server Uptime</span>
+                                <span class="font-mono text-white font-bold">${App.formatUptime(data.uptime_seconds)}</span>
+                            </div>
+                        `;
+                    }
+
+                    // Update Settings Bar - Environment Mounts
+                    const config = document.getElementById('config-container');
+                    if (config) {
+                        config.innerHTML = Object.entries(data.paths).map(([k,v]) => `
+                            <div class="flex flex-col space-y-1.5 p-3 bg-black/40 rounded-lg border border-gray-800/50 group/item">
+                                <span class="text-gray-400 font-bold uppercase tracking-wider text-[10px]">${k} PATH</span>
+                                <div class="flex items-center justify-between">
+                                    <span class="font-mono text-white text-[11px] break-all truncate mr-2" title="${v}">${v}</span>
+                                    <button onclick="navigator.clipboard.writeText('${v}'); App.toast('Path copied', 'success')" class="text-gray-600 hover:text-brand transition"><i class="fa-solid fa-copy"></i></button>
+                                </div>
+                            </div>
+                        `).join('');
+                    }
+
+                    // Update Settings Bar - Integrations
+                    const ints = document.getElementById('integrations-container');
+                    if (ints) {
+                        ints.innerHTML = `
+                            <div class="flex flex-col space-y-2 p-3 bg-black/40 rounded-lg border border-gray-800/50">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-300 font-bold flex items-center"><img src="https://upload.wikimedia.org/wikipedia/commons/3/3b/Jellyfin_logo.svg" class="w-4 h-4 mr-2 grayscale brightness-200"> Jellyfin</span>
+                                    <button onclick="App.triggerJellyfinSync()" class="text-[10px] font-bold text-brand hover:text-white transition bg-brand/10 px-2 py-1 rounded"><i class="fa-solid fa-rotate mr-1"></i>Sync Now</button>
+                                </div>
+                                <span class="font-mono text-gray-500 text-[11px] truncate" title="${data.integrations.jellyfin}">${data.integrations.jellyfin}</span>
+                            </div>
+                            <div class="flex flex-col space-y-2 p-3 bg-black/40 rounded-lg border border-gray-800/50">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-300 font-bold flex items-center"><i class="fa-solid fa-music mr-2 text-spotifyGreen"></i> Navidrome</span>
+                                    <span class="text-[10px] font-bold uppercase px-2 py-1 rounded ${data.integrations.navidrome && data.integrations.navidrome !== 'Not Configured' ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-gray-800 text-gray-500 border border-gray-700'}">${data.integrations.navidrome && data.integrations.navidrome !== 'Not Configured' ? 'Active' : 'Unset'}</span>
+                                </div>
+                                <span class="font-mono text-gray-500 text-[11px] truncate" title="${data.integrations.navidrome}">${data.integrations.navidrome}</span>
+                            </div>
+                        `;
+                    }
+
+                    // Update Active Tasks Drawer & Badge
+                    const badge = document.getElementById('sidebarTaskBadge');
+                    const activeCount = data.active_downloads.filter(d => d.status === 'downloading' || d.status === 'starting').length;
+                    if (activeCount > 0) {
+                        badge.innerText = activeCount;
+                        badge.classList.remove('hidden');
+                    } else {
+                        badge.classList.add('hidden');
+                    }
+
+                    const taskList = document.getElementById('taskDrawerList');
+                    if (taskList) {
+                        taskList.innerHTML = data.active_downloads.map(t => `
+                            <div class="bg-black/50 p-3.5 rounded-xl border border-gray-800 space-y-2 shadow-lg">
+                                <div class="flex justify-between items-center text-xs font-bold">
+                                    <span class="text-brand truncate mr-2" title="${t.id}">Task ${t.id}</span>
+                                    <span class="uppercase text-[10px] px-2 py-0.5 rounded shadow ${t.status === 'downloading' ? 'bg-blue-900 border border-blue-500 text-blue-100 animate-pulse' : (t.status === 'completed' ? 'bg-green-900 border border-green-500 text-green-100' : 'bg-red-900 border border-red-500 text-red-100')}">${t.status}</span>
+                                </div>
+                                <p class="text-xs text-gray-400 truncate bg-[#1a1a1a] px-2 py-1 rounded" title="${t.url}">${t.url}</p>
+                                <div class="w-full bg-gray-900 h-1.5 rounded-full overflow-hidden shadow-inner">
+                                    <div class="bg-brand h-1.5 rounded-full transition-all" style="width: ${t.percent || 0}%"></div>
+                                </div>
+                                <div class="flex justify-between text-[10px] text-gray-400 font-mono">
+                                    <span>${t.downloaded_mb || 0} / ${t.total_mb || 0} MB</span>
+                                    <span class="text-brand">${t.speed_mb || 0} MB/s</span>
+                                </div>
+                            </div>
+                        `).join('');
+                    }
+
+                } catch (e) {}
+            },
+
+            clearSystemCache: async () => {
+                App.toast("Clearing yt-dlp signature cache...", "info");
+                try {
+                    const res = await fetch('/api/maintenance/clear-cache', { method: 'POST' });
+                    const data = await res.json();
+                    if (res.ok) App.toast(data.message, "success");
+                    else App.toast(data.error, "error");
+                } catch(e) {
+                    App.toast("Failed to connect to backend", "error");
+                }
+            },
+
+            triggerJellyfinSync: async () => {
+                App.toast("Triggering Jellyfin Library Refresh...", "info");
+                try {
+                    const res = await fetch('/api/trigger-scan', { method: 'POST' });
+                    const data = await res.json();
+                    if (res.ok) App.toast(data.message, "success");
+                    else App.toast(data.error, "error");
+                } catch (e) {
+                    App.toast("Jellyfin sync failed", "error");
+                }
+            },
+
+            runInspector: async () => {
+                const url = document.getElementById('inspectInput').value.trim();
+                const result = document.getElementById('inspectResult');
+                if (!url) return;
+                result.classList.remove('hidden');
+                result.innerHTML = `<p class="text-gray-400 animate-pulse"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Extracting media signatures...</p>`;
+                
+                try {
+                    const res = await fetch('/api/inspect', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url })
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                        result.innerHTML = `
+                            <div class="flex space-x-3 items-center">
+                                ${data.thumbnail ? `<img src="${data.thumbnail}" class="w-24 h-14 object-cover rounded-lg border border-gray-800 shadow-md">` : '<div class="w-24 h-14 bg-black rounded-lg flex items-center justify-center"><i class="fa-solid fa-folder text-brand"></i></div>'}
+                                <div class="truncate flex-1">
+                                    <div class="flex items-center space-x-2">
+                                        ${data.is_playlist ? '<span class="bg-brand text-white text-[9px] uppercase px-1.5 py-0.5 rounded font-bold">Playlist</span>' : ''}
+                                        <h4 class="font-bold text-white truncate text-sm" title="${data.title}">${data.title}</h4>
+                                    </div>
+                                    <p class="text-xs text-gray-400 mt-0.5">${data.uploader} • ${(data.duration/60).toFixed(1)} mins</p>
+                                </div>
+                            </div>
+                            <p class="text-[10px] text-gray-500 mt-2 bg-black p-2 rounded line-clamp-3">${data.description}</p>
+                            <button onclick="document.getElementById('urlInput').value = '${url}'; App.toggleInspectModal();" class="w-full mt-3 bg-brand hover:bg-brandHover text-white py-2.5 rounded-lg font-bold text-xs shadow-lg transition">Load Into Acquisition Bar</button>
+                        `;
+                    } else {
+                        result.innerHTML = `<p class="text-red-500 text-xs">${data.error}</p>`;
+                    }
+                } catch (e) {
+                    result.innerHTML = `<p class="text-red-500 text-xs">Extraction error</p>`;
+                }
+            },
+
+            deleteMedia: async (category, filename) => {
+                if (!confirm(`Permanently remove ${filename}?`)) return;
+                try {
+                    const res = await fetch('/api/delete', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ files: [{ category, filename }] })
+                    });
+                    if (res.ok) {
+                        App.toast("File deleted", "success");
+                        App.clearSelection();
+                        App.fetchLibrary(App.state.currentCategory);
+                    }
+                } catch (e) { App.toast("Deletion failed", "error"); }
+            },
+
+            // --- FAVORITES & HELPERS ---
+
+            toggleFavorite: (name) => {
+                const idx = App.state.favorites.indexOf(name);
+                if (idx > -1) App.state.favorites.splice(idx, 1);
+                else App.state.favorites.push(name);
+                localStorage.setItem('jf_favorites', JSON.stringify(App.state.favorites));
+                App.updateFavButtonState(name);
+                App.render();
+            },
+
+            toggleCurrentFavorite: () => {
+                const title = document.getElementById('player-title').innerText;
+                if (title && title !== 'No media loaded') App.toggleFavorite(title);
+            },
+
+            updateFavButtonState: (name) => {
+                const isFav = App.state.favorites.includes(name);
+                const btn = document.getElementById('player-fav-btn');
+                btn.innerHTML = `<i class="fa-${isFav ? 'solid text-pink-500' : 'regular text-gray-500'} fa-heart text-base"></i>`;
+            },
+
+            handleSearchAndSort: () => {
+                const q = document.getElementById('searchInput').value.toLowerCase();
+                const sort = document.getElementById('sortSelect').value;
+
+                let temp = App.state.files.filter(f => f.name.toLowerCase().includes(q));
+
+                if (App.state.activeFilter === 'video') temp = temp.filter(f => !f.is_audio);
+                else if (App.state.activeFilter === 'audio') temp = temp.filter(f => f.is_audio);
+                else if (App.state.activeFilter === 'favorites') temp = temp.filter(f => App.state.favorites.includes(f.name));
+                else if (App.state.activeFilter === 'large') temp = temp.filter(f => f.size_mb > 100);
+
+                temp.sort((a, b) => {
+                    if (sort === 'newest') return b.timestamp - a.timestamp;
+                    if (sort === 'oldest') return a.timestamp - b.timestamp;
+                    if (sort === 'largest') return b.size_mb - a.size_mb;
+                    if (sort === 'smallest') return a.size_mb - b.size_mb;
+                    if (sort === 'az') return a.name.localeCompare(b.name);
+                    return 0;
+                });
+
+                App.state.filteredFiles = temp;
+                App.clearSelection();
+                App.render();
+            },
+
+            routeHandler: () => {
+                const hash = window.location.hash.substring(1) || 'movies';
+                document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+                document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('text-white', 'bg-surface'));
+
+                if (hash === 'settings') {
+                    document.getElementById('view-settings').classList.add('active');
+                } else {
+                    document.getElementById('view-library').classList.add('active');
+                    App.state.currentCategory = hash;
+                    const titles = { movies: "Movies", tv: "TV Shows", music: "Music Library", social: "Social Media Clips" };
+                    document.getElementById('category-title').innerText = titles[hash] || "Library";
+                    App.fetchLibrary(hash);
+                }
+
+                const activeNav = document.querySelector(`.nav-link[data-target="${hash}"]`);
+                if (activeNav) activeNav.classList.add('text-white', 'bg-surface');
+            },
+
+            formatUptime: (seconds) => {
+                const d = Math.floor(seconds / (3600*24));
+                const h = Math.floor(seconds % (3600*24) / 3600);
+                const m = Math.floor(seconds % 3600 / 60);
+                const s = Math.floor(seconds % 60);
+                const parts = [];
+                if (d > 0) parts.push(`${d}d`);
+                if (h > 0) parts.push(`${h}h`);
+                if (m > 0) parts.push(`${m}m`);
+                parts.push(`${s}s`);
+                return parts.join(' ');
+            },
+
+            timeAgo: (ts) => {
+                const s = Math.floor((Date.now() - ts * 1000) / 1000);
+                if (s < 60) return "Just now";
+                if (s < 3600) return `${Math.floor(s/60)}m ago`;
+                if (s < 86400) return `${Math.floor(s/3600)}h ago`;
+                return `${Math.floor(s/86400)}d ago`;
+            },
+
+            toast: (msg, type = "info") => {
+                const box = document.getElementById('toast-container');
+                const t = document.createElement('div');
+                const border = type === "error" ? "border-red-500" : (type === "success" ? "border-green-500" : "border-brand");
+                t.className = `transform translate-x-full transition-transform duration-300 bg-[#242424]/90 backdrop-blur-md border-l-4 ${border} text-white px-5 py-3 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.5)] flex items-center space-x-3 text-xs font-bold`;
+                t.innerHTML = `<span>${msg}</span>`;
+                box.appendChild(t);
+                requestAnimationFrame(() => t.classList.remove('translate-x-full'));
+                setTimeout(() => { t.classList.add('translate-x-full'); setTimeout(() => t.remove(), 300); }, 4000);
+            },
+
+            toggleInspectModal: () => document.getElementById('inspectModal').classList.toggle('hidden'),
+            toggleTaskDrawer: () => document.getElementById('taskDrawer').classList.toggle('translate-x-full'),
+            toggleQueueDrawer: () => document.getElementById('queueDrawer').classList.toggle('translate-x-full'),
+            toggleShortcutsModal: () => document.getElementById('shortcutsModal').classList.toggle('hidden'),
+
+            showContextMenu: (e, category, filename, rel_path) => {
+                e.preventDefault();
+                App.state.contextTarget = { category, filename, rel_path };
+                const menu = document.getElementById('context-menu');
+                menu.style.left = `${Math.min(e.clientX, window.innerWidth - 220)}px`;
+                menu.style.top = `${Math.min(e.clientY, window.innerHeight - 190)}px`;
+                menu.classList.remove('hidden');
+            },
+
+            // --- INITIALIZATION & GLOBAL EVENTS ---
+
+            init: () => {
+                document.getElementById('searchInput').addEventListener('input', App.handleSearchAndSort);
+                document.getElementById('sortSelect').addEventListener('change', App.handleSearchAndSort);
+
+                // Global Drag & Drop Handler
+                window.addEventListener('dragover', (e) => { e.preventDefault(); document.getElementById('dragOverlay').classList.remove('hidden'); });
+                window.addEventListener('dragleave', (e) => { e.preventDefault(); document.getElementById('dragOverlay').classList.add('hidden'); });
+                window.addEventListener('drop', (e) => { 
+                    e.preventDefault(); 
+                    document.getElementById('dragOverlay').classList.add('hidden');
+                    const url = e.dataTransfer.getData('text/plain');
+                    if(url) { 
+                        document.getElementById('inspectInput').value = url; 
+                        App.toggleInspectModal();
+                        App.runInspector(); 
+                    }
+                });
+
+                // Download Form
+                document.getElementById('downloadForm').addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const input = document.getElementById('urlInput');
+                    const url = input.value.trim();
+                    const format = document.getElementById('formatSelect').value;
+                    if (!url) return;
+                    input.value = '';
+                    App.toast("Spawning download thread...", "info");
+
+                    try {
+                        const res = await fetch('/api/download', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ url, format })
+                        });
+                        if (res.ok) {
+                            App.toast("Acquisition started!", "success");
+                            App.fetchSystem();
+                        }
+                    } catch (err) { App.toast("Server communication failed", "error"); }
+                });
+
+                // Context Menu Routing
+                document.addEventListener('click', () => document.getElementById('context-menu').classList.add('hidden'));
+                document.getElementById('ctx-play').addEventListener('click', () => {
+                    const f = App.state.files.find(x => x.name === App.state.contextTarget.filename);
+                    if (f) App.playMedia(f, true);
+                });
+                document.getElementById('ctx-queue').addEventListener('click', () => {
+                    const f = App.state.files.find(x => x.name === App.state.contextTarget.filename);
+                    if (f) App.enqueueMedia(f);
+                });
+                document.getElementById('ctx-fav').addEventListener('click', () => {
+                    if (App.state.contextTarget) App.toggleFavorite(App.state.contextTarget.filename);
+                });
+                document.getElementById('ctx-copy').addEventListener('click', () => {
+                    if (App.state.contextTarget) {
+                        navigator.clipboard.writeText(App.state.contextTarget.filename);
+                        App.toast("Copied filename to clipboard", "success");
+                    }
+                });
+                document.getElementById('ctx-delete').addEventListener('click', () => {
+                    if (App.state.contextTarget) App.deleteMedia(App.state.contextTarget.category, App.state.contextTarget.filename);
+                });
+
+                // Audio / Video Global Events
+                const audio = document.getElementById('coreAudioEngine');
+                const video = document.getElementById('coreVideoEngine');
+                const seek = document.getElementById('seekSlider');
+                
+                const timeUpdateLogic = (el) => {
+                    if (!el.duration) return;
+                    seek.value = (el.currentTime / el.duration) * 100;
+                    document.getElementById('timeCurrent').innerText = `${Math.floor(el.currentTime/60)}:${String(Math.floor(el.currentTime%60)).padStart(2,'0')}`;
+                    document.getElementById('timeTotal').innerText = `${Math.floor(el.duration/60)}:${String(Math.floor(el.duration%60)).padStart(2,'0')}`;
+                };
+
+                const autoNext = () => App.nextTrack();
+                audio.addEventListener('ended', autoNext);
+                video.addEventListener('ended', autoNext);
+
+                audio.addEventListener('timeupdate', () => timeUpdateLogic(audio));
+                video.addEventListener('timeupdate', () => timeUpdateLogic(video));
+                
+                seek.addEventListener('input', () => {
+                    const active = audio.src && !audio.paused ? audio : (video.src && !video.paused ? video : (audio.src ? audio : video));
+                    if (active && active.duration) active.currentTime = (seek.value / 100) * active.duration;
+                });
+                document.getElementById('volSlider').addEventListener('input', (e) => {
+                    audio.volume = e.target.value;
+                    video.volume = e.target.value;
+                });
+
+                // Global Shortcuts
+                window.addEventListener('keydown', (e) => {
+                    if (['INPUT', 'SELECT'].includes(e.target.tagName)) return;
+                    if (e.code === 'Space' || e.key === 'k') { e.preventDefault(); App.togglePlay(); }
+                    if (e.key === 'm') App.toggleMute();
+                    if (e.key === 'f') App.openTheaterModal();
+                    if (e.key === '/') { e.preventDefault(); document.getElementById('urlInput').focus(); }
+                    if (e.key === 'Escape') {
+                        App.closeTheaterModal();
+                        document.getElementById('inspectModal').classList.add('hidden');
+                        document.getElementById('shortcutsModal').classList.add('hidden');
+                    }
+                });
+
+                // Init modules
+                App.initVisualizer();
+                window.addEventListener('hashchange', App.routeHandler);
+                App.routeHandler();
+                App.fetchSystem();
+                App.state.pollingInterval = setInterval(App.fetchSystem, 3000);
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', App.init);
+    </script>
+</body>
+</html>

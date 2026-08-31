@@ -1,0 +1,28 @@
+# Python environment & caches
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# Secrets and Local Config
+web/.env
+.env
+
+# Media output test files
+*.mp4
+*.mkv
+*.webm
+*.mp3
+*.flac
+*.webp
+*.jpg
+*.png
+*.info.json
+
+# IDEs
+.vscode/
+.idea/

@@ -1,0 +1,11 @@
+[project]
+name = "jellyfetch"
+version = "0.1.0"
+dependencies = ["yt-dlp"]
+
+[project.scripts]
+download = "jellyfetch.fetcher:main"
+
+# Tells the builder to ONLY package the jellyfetch folder
+[tool.setuptools]
+packages = ["jellyfetch"]

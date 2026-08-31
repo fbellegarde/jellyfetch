@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  jellyfetch:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jellyfetch
+    restart: unless-stopped
+    ports:
+      - "${PORT:-5547}:5547"
+    env_file:
+      - web/.env
+    # Add this block to override the internal container paths
+    environment:
+      - PATH_MOVIES=/media/movies
+      - PATH_TV=/media/tv
+      - PATH_MUSIC=/media/music
+      - PATH_SOCIAL=/media/social
+    volumes:
+      # Host Path (WSL) : Container Path (Isolated)
+      - ${PATH_MOVIES:-/mnt/e/Media/Jellyfin/Movies}:/media/movies
+      - ${PATH_TV:-/mnt/e/Media/Jellyfin/TV Shows}:/media/tv
+      - ${PATH_MUSIC:-/mnt/e/Media/Music}:/media/music
+      - ${PATH_SOCIAL:-/mnt/e/Media/Jellyfin/YouTubeClips}:/media/social
